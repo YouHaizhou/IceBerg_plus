@@ -1,0 +1,7 @@
+# docs 文件夹下所有文件
+docs/
+
+# Python 缓存
+__pycache__/
+
+data/
