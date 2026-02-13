@@ -1,0 +1,63 @@
+{
+    "name": "IceBerg_plus Research Project",
+    "description": "GNN不平衡节点分类改进研究",
+    
+    "context": {
+      "include": [
+        "**/*.py",
+        "**/*.md", 
+        "**/*.txt",
+        "**/*.sh",
+        "**/*.yml",
+        "**/*.yaml",
+        "**/*.json",
+        "requirements*.txt",
+        "pyproject.toml",
+        "setup.py"
+      ],
+      
+      "exclude": [
+        "__pycache__/**",
+        ".git/**",
+        "*.pyc",
+        "*.pyo",
+        "*.pyd",
+        ".DS_Store",
+        "Thumbs.db",
+        "data/**",
+        "venv/**",
+        "node_modules/**",
+        "*.pth",
+        "*.pt",
+        "*.h5",
+        "*.npy"
+      ],
+      
+      "maxFileSizeKB": 300,
+      "maxTotalSizeKB": 1000
+    },
+    
+    "fileHandlers": {
+      "*.py": {
+        "extractImports": true,
+        "extractFunctions": true,
+        "extractClasses": true,
+        "extractDocstrings": true
+      },
+      "*.md": {
+        "extractHeaders": true,
+        "extractCodeBlocks": true,
+        "extractTables": true
+      },
+      "*.txt": {
+        "extractSections": true,
+        "ignoreIfLarge": false
+      },
+      "*.sh": {
+        "extractCommands": true
+      }
+    },
+    
+    "projectType": "python_research",
+    "framework": "pytorch"
+}
