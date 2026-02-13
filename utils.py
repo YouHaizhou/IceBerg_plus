@@ -60,6 +60,26 @@ def sparse_mx_to_torch_sparse_tensor(sparse_mx):
     return torch.sparse.FloatTensor(indices, values, shape)
 
 
+def compute_lamda(args, epoch):
+    """Return effective lamda according to schedule."""
+    if epoch < args.warmup:
+        return 0.0
+    progress = max(0.0, min(1.0, (epoch - args.warmup) / max(1, args.lamda_rampup)))
+    if args.lamda_schedule == 'none':
+        return args.lamda
+    elif args.lamda_schedule == 'linear':
+        return args.lamda * progress
+    elif args.lamda_schedule == 'cosine':
+        import math
+        return args.lamda * (1 - math.cos(math.pi * progress)) / 2
+    elif args.lamda_schedule == 'exp':
+        import math
+        return args.lamda * (1 - math.exp(-5 * progress)) / (1 - math.exp(-5))
+    elif args.lamda_schedule == 'step':
+        return args.lamda if progress >= 1.0 else 0.0
+    else:
+        return args.lamda
+
 def feature_propagation(adj, features, K, alpha):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     features = features.to(device)
@@ -104,3 +124,38 @@ def gcn_norm(edge_index, edge_weight=None, num_nodes=None, improved=False,
     return edge_index, deg_inv_sqrt[row] * edge_weight * deg_inv_sqrt[col]
 
 
+# ------------------ Alpha schedule (for α-λ coupling) ------------------ #
+def _schedule_fn(schedule, progress):
+    import math
+    if schedule == 'linear':
+        return progress
+    elif schedule == 'cosine':
+        return (1 - math.cos(math.pi * progress)) / 2
+    elif schedule == 'exp':
+        return (1 - math.exp(-5 * progress)) / (1 - math.exp(-5))
+    elif schedule == 'step':
+        return 1.0 if progress >= 1.0 else 0.0
+    else:  # 'none'
+        return 1.0
+
+
+def compute_alpha(args, epoch):
+    """Return effective alpha according to args.alpha_schedule.
+
+    If alpha_schedule == 'sync', use the same progress as lamda_schedule.
+    Otherwise, independent schedule with alpha_rampup.
+    """
+    if args.alpha_schedule == 'none':
+        return args.alpha
+
+    # determine progress
+    if args.alpha_schedule == 'sync':
+        # reuse lamda progress definition
+        progress = max(0.0, min(1.0, (epoch - args.warmup) / max(1, args.lamda_rampup)))
+        sched = args.lamda_schedule if args.lamda_schedule != 'none' else 'linear'
+        factor = _schedule_fn(sched, progress)
+    else:
+        progress = max(0.0, min(1.0, (epoch - args.warmup) / max(1, args.alpha_rampup)))
+        factor = _schedule_fn(args.alpha_schedule, progress)
+
+    return args.alpha_min + (args.alpha - args.alpha_min) * factor

@@ -1,0 +1,4 @@
+IR: 10, net: Diff, n_layer: 2, feat_dim: 128, lr: 0.1, weight_decay: 0.005, dropout: 0.5 
+            TAM: False, BAT: False, ENS: False, SHA: False, loss_type: bs, no_pseudo: True, label_per_class: 20, T: 20, alpha: 0.1
+Test Acc: 0.7577 +- 0.0041, BAcc: 0.7175 +- 0.0053, F1: 0.7182 +- 0.0058, Val Acc F1: 0.7349
+

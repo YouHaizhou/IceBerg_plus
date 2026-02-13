@@ -1,0 +1,50 @@
+===== Alpha sweep (dataset=Cora) =====
+IR=10 net=Diff loss_type=bs T=20 lamda=1 lamda_schedule=none lamda_rampup=50
+lr=0.1 feat_dim=128 wd=0.005 dropout=0.5 epochs=2000 patience=500 runs=10
+alphas: 0.01 0.03 0.05 0.07 0.10 0.15 0.20
+timestamp: Fri, Feb  6, 2026 12:18:42 PM
+===========================================
+
+===== Running alpha: 0.01 =====
+IR: 10.0, net: Diff, n_layer: 2, feat_dim: 128, lr: 0.1, weight_decay: 0.005, dropout: 0.5 
+            TAM: False, BAT: False, ENS: False, SHA: False, loss_type: bs, no_pseudo: False, label_per_class: 20, T: 20, alpha: 0.01, lamda_schedule: none, lamda_rampup: 50
+Test Acc: 0.7809 +- 0.0046, BAcc: 0.7503 +- 0.0069, F1: 0.7467 +- 0.0070, Val Acc F1: 0.7573
+
+
+===== Running alpha: 0.03 =====
+IR: 10.0, net: Diff, n_layer: 2, feat_dim: 128, lr: 0.1, weight_decay: 0.005, dropout: 0.5 
+            TAM: False, BAT: False, ENS: False, SHA: False, loss_type: bs, no_pseudo: False, label_per_class: 20, T: 20, alpha: 0.03, lamda_schedule: none, lamda_rampup: 50
+Test Acc: 0.7937 +- 0.0041, BAcc: 0.7577 +- 0.0080, F1: 0.7600 +- 0.0074, Val Acc F1: 0.7643
+
+
+===== Running alpha: 0.05 =====
+IR: 10.0, net: Diff, n_layer: 2, feat_dim: 128, lr: 0.1, weight_decay: 0.005, dropout: 0.5 
+            TAM: False, BAT: False, ENS: False, SHA: False, loss_type: bs, no_pseudo: False, label_per_class: 20, T: 20, alpha: 0.05, lamda_schedule: none, lamda_rampup: 50
+Test Acc: 0.8014 +- 0.0033, BAcc: 0.7712 +- 0.0080, F1: 0.7710 +- 0.0074, Val Acc F1: 0.7749
+
+
+===== Running alpha: 0.07 =====
+IR: 10.0, net: Diff, n_layer: 2, feat_dim: 128, lr: 0.1, weight_decay: 0.005, dropout: 0.5 
+            TAM: False, BAT: False, ENS: False, SHA: False, loss_type: bs, no_pseudo: False, label_per_class: 20, T: 20, alpha: 0.07, lamda_schedule: none, lamda_rampup: 50
+Test Acc: 0.7965 +- 0.0055, BAcc: 0.7662 +- 0.0102, F1: 0.7663 +- 0.0093, Val Acc F1: 0.7680
+
+
+===== Running alpha: 0.10 =====
+IR: 10.0, net: Diff, n_layer: 2, feat_dim: 128, lr: 0.1, weight_decay: 0.005, dropout: 0.5 
+            TAM: False, BAT: False, ENS: False, SHA: False, loss_type: bs, no_pseudo: False, label_per_class: 20, T: 20, alpha: 0.1, lamda_schedule: none, lamda_rampup: 50
+Test Acc: 0.8035 +- 0.0052, BAcc: 0.7683 +- 0.0104, F1: 0.7717 +- 0.0097, Val Acc F1: 0.7720
+
+
+===== Running alpha: 0.15 =====
+IR: 10.0, net: Diff, n_layer: 2, feat_dim: 128, lr: 0.1, weight_decay: 0.005, dropout: 0.5 
+            TAM: False, BAT: False, ENS: False, SHA: False, loss_type: bs, no_pseudo: False, label_per_class: 20, T: 20, alpha: 0.15, lamda_schedule: none, lamda_rampup: 50
+Test Acc: 0.8016 +- 0.0031, BAcc: 0.7677 +- 0.0077, F1: 0.7704 +- 0.0067, Val Acc F1: 0.7825
+
+
+===== Running alpha: 0.20 =====
+IR: 10.0, net: Diff, n_layer: 2, feat_dim: 128, lr: 0.1, weight_decay: 0.005, dropout: 0.5 
+            TAM: False, BAT: False, ENS: False, SHA: False, loss_type: bs, no_pseudo: False, label_per_class: 20, T: 20, alpha: 0.2, lamda_schedule: none, lamda_rampup: 50
+Test Acc: 0.7926 +- 0.0034, BAcc: 0.7613 +- 0.0088, F1: 0.7614 +- 0.0080, Val Acc F1: 0.7695
+
+
+Done. Merged stdout: result/Diff_Cora_alpha_sweep_IR10_True.txt

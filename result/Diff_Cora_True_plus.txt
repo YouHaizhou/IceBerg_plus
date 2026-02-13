@@ -1,0 +1,46 @@
+
+===== Running dataset: Cora =====
+IR: 10.0, net: Diff, n_layer: 2, feat_dim: 128, lr: 0.1, weight_decay: 0.005, dropout: 0.5 
+            TAM: False, BAT: False, ENS: False, SHA: False, loss_type: bs, no_pseudo: False, label_per_class: 20, T: 20, alpha: 0.05, lamda_schedule: none, lamda_rampup: 50
+Test Acc: 0.7978 +- 0.0046, BAcc: 0.7669 +- 0.0086, F1: 0.7669 +- 0.0084, Val Acc F1: 0.7709
+
+
+===== Running dataset: CiteSeer =====
+IR: 10.0, net: Diff, n_layer: 2, feat_dim: 128, lr: 0.1, weight_decay: 0.005, dropout: 0.5 
+            TAM: False, BAT: False, ENS: False, SHA: False, loss_type: bs, no_pseudo: False, label_per_class: 20, T: 20, alpha: 0.05, lamda_schedule: none, lamda_rampup: 50
+Test Acc: 0.6771 +- 0.0207, BAcc: 0.6593 +- 0.0167, F1: 0.6524 +- 0.0192, Val Acc F1: 0.6735
+
+
+===== Running dataset: PubMed =====
+IR: 10.0, net: Diff, n_layer: 2, feat_dim: 128, lr: 0.1, weight_decay: 0.005, dropout: 0.5 
+            TAM: False, BAT: False, ENS: False, SHA: False, loss_type: bs, no_pseudo: False, label_per_class: 20, T: 20, alpha: 0.05, lamda_schedule: none, lamda_rampup: 50
+Test Acc: 0.7408 +- 0.0138, BAcc: 0.7473 +- 0.0091, F1: 0.7351 +- 0.0123, Val Acc F1: 0.7501
+
+
+===== Running dataset: cs =====
+IR: 10.0, net: Diff, n_layer: 2, feat_dim: 128, lr: 0.1, weight_decay: 0.005, dropout: 0.5 
+            TAM: False, BAT: False, ENS: False, SHA: False, loss_type: bs, no_pseudo: False, label_per_class: 20, T: 20, alpha: 0.05, lamda_schedule: none, lamda_rampup: 50
+Test Acc: 0.7825 +- 0.0182, BAcc: 0.7610 +- 0.0083, F1: 0.7351 +- 0.0100, Val Acc F1: 0.7667
+
+
+Done. Per-dataset logs: result/Diff_<DATASET>_True.txt ; merged stdout: result/Diff_Cora_True_plus.txt
+
+//////////////////////////////
+IR: 10.0, net: Diff, n_layer: 2, feat_dim: 128, lr: 0.1, weight_decay: 0.005, dropout: 0.5 
+            TAM: False, BAT: False, ENS: False, SHA: False, loss_type: bs, no_pseudo: False, label_per_class: 20, T: 20, alpha: 0.1, lamda_schedule: none, lamda_rampup: 50
+Test Acc: 0.7981 +- 0.0029, BAcc: 0.7585 +- 0.0064, F1: 0.7614 +- 0.0063, Val Acc F1: 0.7715
+
+IR: 10.0, net: Diff, n_layer: 2, feat_dim: 128, lr: 0.1, weight_decay: 0.005, dropout: 0.5 
+            TAM: False, BAT: False, ENS: False, SHA: False, loss_type: bs, no_pseudo: False, label_per_class: 20, T: 20, alpha: 0.1, lamda_schedule: none, lamda_rampup: 50
+Test Acc: 0.6853 +- 0.0123, BAcc: 0.6673 +- 0.0122, F1: 0.6602 +- 0.0144, Val Acc F1: 0.6872
+
+IR: 10.0, net: Diff, n_layer: 2, feat_dim: 128, lr: 0.1, weight_decay: 0.005, dropout: 0.5 
+            TAM: False, BAT: False, ENS: False, SHA: False, loss_type: bs, no_pseudo: False, label_per_class: 20, T: 20, alpha: 0.1, lamda_schedule: none, lamda_rampup: 50
+Test Acc: 0.7554 +- 0.0125, BAcc: 0.7659 +- 0.0088, F1: 0.7512 +- 0.0128, Val Acc F1: 0.7678
+
+IR: 10.0, net: Diff, n_layer: 2, feat_dim: 128, lr: 0.1, weight_decay: 0.005, dropout: 0.5 
+            TAM: False, BAT: False, ENS: False, SHA: False, loss_type: bs, no_pseudo: False, label_per_class: 20, T: 20, alpha: 0.1, lamda_schedule: none, lamda_rampup: 50
+Test Acc: 0.8592 +- 0.0098, BAcc: 0.8387 +- 0.0041, F1: 0.8260 +- 0.0065, Val Acc F1: 0.8505
+
+
+///////////////////////////////////

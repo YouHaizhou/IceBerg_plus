@@ -378,7 +378,10 @@ class Trainer():
         # Double Balancing
         if not self.args.no_pseudo and epoch >= self.args.warmup:
             self.class_num_list_u = torch.tensor([(self.pred_label[self.pseudo_mask] == i).sum().item() for i in range(self.num_cls)])
-            loss += criterion_u(output[self.pseudo_mask], self.pred_label[self.pseudo_mask], self.class_num_list_u) * self.args.lamda
+            # IceBerg_plus: optional lamda schedule (linear ramp after warmup)
+            from utils import compute_lamda
+            effective_lamda = compute_lamda(self.args, epoch)
+            loss += criterion_u(output[self.pseudo_mask], self.pred_label[self.pseudo_mask], self.class_num_list_u) * effective_lamda
         
         loss.backward()
         optimizer.step()
@@ -442,6 +445,11 @@ class Trainer():
         for epoch in range(1, self.args.epochs+1):
             if not self.args.no_pseudo:
                 self.get_pred_label()
+                # 5.4 单 run 调试：打印伪标签规模与类分布（仅 runs=1 且前几 epoch / 每 50 epoch）
+                if self.args.runs == 1 and (epoch <= 5 or epoch % 50 == 0):
+                    class_num_list_u = [(self.pred_label[self.pseudo_mask] == i).sum().item() for i in range(self.num_cls)]
+                    print("[5.4 debug] epoch {} pseudo_mask.sum()={}, class_num_list_u={}".format(
+                        epoch, self.pseudo_mask.sum().item(), class_num_list_u))
             self.train_epoch(epoch)
 
             accs, baccs, f1s = self.test_epoch()
@@ -464,3 +472,19 @@ class Trainer():
                 if p == self.args.patience: break
         
         return best_val_acc_f1, test_acc, test_bacc, test_f1
+
+
+    def get_prop_feature(self, alpha_override=None):
+        """Pre-compute propagated features for Diff model.
+
+        alpha_override: if provided, use this alpha instead of args.alpha.
+        """
+        edge_index = self.data.edge_index
+        x = self.data.x
+
+        alpha_val = self.args.alpha if alpha_override is None else alpha_override
+
+        adj = edge_index_to_sparse_mx(edge_index.cpu(), self.num_nodes)
+        adj = process_adj(adj)
+        x_prop = feature_propagation(adj, x, self.args.T, alpha_val)
+        self.x_prop = x_prop.to(self.device)

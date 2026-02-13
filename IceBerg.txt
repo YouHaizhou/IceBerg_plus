@@ -1,0 +1,732 @@
+﻿          IceBerg: Debiased Self-Training for Class-Imbalanced Node
+                                                     Classification
+                    Zhixun Li∗                          Dingshuo Chen                             Tong Zhao
+        The Chinese University of Hong Kong       Institute of Automation, Chinese                 Ant Group
+               Hong Kong SAR, China                    Academy of Sciences                       Shanghai, China
+                zxli@se.cuhk.edu.hk                        Beijing, China                    chaoti.zt@antgroup.com
+                                                   dingshuo.chen@cripac.ia.ac.cn
+                   Daixin Wang                            Hongrui Liu                          Zhiqiang Zhang
+                     Ant Group                              Ant Group                              Ant Group
+                   Beijing, China                         Beijing, China                        Hangzhou, China
+             daixin.wdx@antgroup.com               liuhongrui.lhr@antgroup.com             lingyao.zzq@antgroup.com
+
+                                        Jun Zhou†                           Jeffrey      Xu Yu†
+                                         Ant Group                 The Chinese University of Hong Kong
+                                     Hangzhou, China                     Hong Kong SAR, China
+                                jun.zhoujun@antgroup.com                   yu@se.cuhk.edu.hk
+
+     Abstract                                                       to leverage unsupervised signals, it also achieves state-of-the-art re-
+     Graph Neural Networks (GNNs) have achieved great success in deal- sults in few-shot node classification scenarios. The code of IceBerg
+     ing with non-Euclidean graph-structured data and have been widely is available at: https://github.com/ZhixunLEE/IceBerg.
+     deployed in many real-world applications. However, their effective-
+     ness is often jeopardized under class-imbalanced training sets. Most CCS Concepts
+     existing studies have analyzed class-imbalanced node classification • Computing methodologies → Artificial intelligence.
+     from a supervised learning perspective, but they do not fully utilize
+     the large number of unlabeled nodes in semi-supervised scenarios. Keywords
+     We claim that the supervised signal is just the tip of the iceberg and Graph Neural Networks; Class-Imbalanced; Few-Shot Learning
+     a large number of unlabeled nodes have not yet been effectively
+     utilized. In this work, we propose IceBerg, a debiased self-training ACM Reference Format:
+                                                                    Zhixun Li, Dingshuo Chen, Tong Zhao, Daixin Wang, Hongrui Liu, Zhiqiang
+     framework to address the class-imbalanced and few-shot challenges           †
+     for GNNs at the same time. Specifically, to figure out the Matthew ef- Zhang, Jun Zhou , and Jeffrey Xu Yu. 2025. IceBerg: Debiased Self-Training
+                                                                    for Class-Imbalanced Node Classification. In Proceedings of the ACM Web
+     fect and label distribution shift in self-training, we propose Double
+                                                                    Conference 2025 (WWW ’25), April 28-May 2, 2025, Sydney, NSW, Australia.
+     Balancing
+               , which can largely improve the performance of existing ACM, New York, NY, USA, 11 pages. https://doi.org/10.1145/3696410.3714963
+     baselines with just a few lines of code as a simple plug-and-play
+     module. Secondly, to enhance the long-range propagation capabil-
+     ity of GNNs, we disentangle the propagation and transformation 1   Introduction
+     operations of GNNs. Therefore, the weak supervision signals can Semi-supervised node classification is a fundamental task in graph
+     propagate more effectively to address the few-shot issue. In sum- machine learning, holding significant relevance in various real-
+     mary, we find that leveraging unlabeled nodes can significantly world applications, such as fraud detection [6, 18], and recommen-
+     enhance the performance of GNNs in class-imbalanced and few-   dation [49, 50] to name some. With the rapid development of deep
+arXiv:2502.06280v1  [cs.LG] 10 Feb 2025 shot scenarios, and even small, surgical modifications can lead to learning, Graph Neural Networks (GNNs) have been widely used
+     substantial performance improvements. Systematic experiments on in dealing with non-Euclidean graph-structured data and have
+     benchmark datasets show that our method can deliver considerable achieved considerable progress [15–17, 20, 26, 46? ]. However, their
+     performance gain over existing class-imbalanced node classifica- effectiveness is often jeopardized under class-imbalanced training
+     tion baselines. Additionally, due to IceBerg’s outstanding ability datasets. In these scenarios, GNNs are prone to be biased toward
+                                                                    majority classes, leading to low test accuracy on minority classes.
+     ∗Work was done during Zhixun Li’s internship at Ant Group.        To tackle the class-imbalanced issues in deep learning, various
+     †
+      Corresponding author                                          Class Imbalanced Learning (CIL) methods have been proposed
+                                                                    in fields like  computer vision and natural language processing
+                                                                    [3, 12, 21]. However, these methods are hard to be directly applied
+     This work is licensed under a Creative Commons Attribution 4.0 International License. to graph-structured data because of the non-iid characteristics of
+     WWW ’25, Sydney, NSW, Australia                                graphs [32]. Recently, close to the heels of the rapid development
+     © 2025 Copyright held by the owner/author(s).
+     ACM ISBN 979-8-4007-1274-6/25/04                               of GNNs in node classification, various Class Imbalanced Graph
+     https://doi.org/10.1145/3696410.3714963                        Learning (CIGL) approaches have been proposed [28, 31, 32, 51],
+WWW  ’25, April 28-May 2, 2025, Sydney, NSW, Australia                                                        Zhixun Li et al.
+
+most of them attempt to utilize data augmentation techniques to method, Double Balancing (DB), which only requires a few lines
+generate virtual minority nodes for balancing the training process of code to the existing pipelines and can significantly improve the
+[28, 29, 51]. The other line of approaches aims to facilitate CIGL model’s performance in CIGL with almost no additional training
+through the graph structure. More precisely, they adjust margins overhead. Specifically, we first use the model to predict pseudo
+node-wisely according to the extent of deviation from connectivity labels for the unlabeled nodes, then use them to estimate the class
+patterns or augment structures to alleviate ambivalent and distant distribution of the unlabeled set, and finally apply a simple bal-
+message passing. Nevertheless, most of the existing methods treat anced loss function to mitigate the imbalance. Due to the potential
+the CIGL task as supervised learning, overlooking the large amount presence of incorrect predictions in the pseudo labels, which may
+of unlabeled data in the graph. For example, in the Cora dataset, lead to Confirmation Bias [1], we propose Noise-Tolerant Double
+if there are 20 labels per majority class, and the step imbalance Balancing to further enhance performance.
+ratio equals 10 (which means there are only 2 labels per minority Additionally, most previous CIGL baselines have only focused on
+class), labeled nodes in the majority classes for only 4.4% of all the balance between majority and minority classes, without address-
+nodes, while in the minority classes, it is even lower at just 0.6%. ing the potential few-shot problem in CIGL. Therefore, we revisit
+Therefore, we naturally raise a question: "Can we explicitly utilize the model architecture from the perspective of message-passing.
+these unlabeled nodes to assist with CIGL?"                    Though message-passing is a key factor of GNNs for capturing
+   Self-training is one of the most promising Semi-Supervised Learn- structural knowledge, such a coupled design may in turn bring
+ing (SSL) paradigms for bypassing the labeling cost by leveraging severe challenges for GNNs when learning with scarce labels [24].
+abundant unlabeled data. It typically selects a subset of predictions Because of the scarcity of labeled nodes in minority classes, limited
+from the model itself with a higher confidence of correctness as propagation steps make it difficult for the supervision signals to
+pseudo labels to add to the training set and repeats this process cover unlabeled nodes. However, simply increasing the model depth
+iteratively. However, traditional self-training methods are based on will result in the over-smoothing problem, which we refer to as Prop-
+a basic assumption that the class distribution of the training set is agation Dilemma. According to previous literature [48], the major
+balanced, and the class imbalanced issue can be more problematic cause for the performance degradation of deep GNNs is the model
+for self-training algorithms. We first analyze this phenomenon from degradation issues caused by a large number of transformations,
+the quantity and confidence of pseudo labels in a class imbalanced rather than a large number of propagation. We decouple GNNs and
+training dataset (as shown in Figure 1 Left). We can observe that: increase the propagation hops, interestingly, we find that increasing
+(1) Due to the abundance of training labels for majority classes, the the number of propagation hops can effectively enhance CIGL per-
+model is prone to be biased toward majority classes, resulting in a formance, even surpassing some existing specific CIGL baselines. In
+much higher amount of majority class pseudo labels compared to summary, we claim that the advantages of decouple GNNs in CIGL:
+minority classes. (2) Because of the imbalance in the model training (1) By increasing the number of propagation hops, we can transmit
+process, the model tends to be more confident in its predictions for the supervision signals further, capturing higher-order structural
+majority classes, and vice versa. If we directly use self-training algo- knowledge, and thereby alleviating the few-shot problem. (2) Since
+rithms on class imbalanced training sets, the predefined threshold the feature propagation process can be pre-computed and does not
+will filter out most pseudo labels from minority classes, resulting participate in model training, the efficiency of the model will be
+in an increasingly imbalanced training set. Therefore, with the in- significantly enhanced. (3) Because the feature propagation can
+crease in stages, the model’s performance will deteriorate further be considered as unsupervised representation learning, the noise
+(as shown in Figure 1 Right), and we refer to this phenomenon as introduced by incorrect labels will not backpropagate to the node
+the Matthew Effect ("the rich get richer and the poor get poorer"). features [4, 40], which will be more beneficial for self-training.
+   Although some previous works have attempted to use self-training Combining all the above designs, we propose IceBerg, a simple-
+to aid with learning in CIGL [41, 47, 52], they only use pseudo la- yet-effective approach for class-imbalanced and few-shot node clas-
+bels to fill minority classes and do not fully leverage unlabeled sification. Our contributions can be listed as follows:
+nodes. Additionally, their methods are all based on the multi-stage
+                                                               • Preliminary Analysis. We believe that supervision signals are
+framework, which requires multiple rounds of teacher-student dis-
+                                                                 just the tip of the iceberg. By effectively leveraging the large
+tillation, and this will significantly reduce the efficiency ofthe
+                                                                 number of unlabeled nodes in the graph, we can easily and sig-
+model. So we aim to design an approach within the single-stage
+                                                                 nificantly enhance  the model’s performance.
+self-training framework, but we still face several challenges. First,
+                                                               • Model Design.  Based on our preliminary analysis, we propose
+since the class distribution between the labeled and unlabeled set
+                                                                 IceBerg, a simple-yet-effective approach. It can also be flexibly
+is inconsistent (as shown in Figure 5 in Appendix A), even if the
+                                                                 combined with other baselines as a plug-and-play module.
+supervised training on the labeled set is balanced, the pseudo la-
+                                                               • Experimental Evaluation.  Systematic and extensive experi-
+bels generated by the model will still be imbalanced, which will
+                                                                 ments demonstrate that IceBerg achieves superior performance
+also lead to the Matthew Effect. Second, because the ground-truth
+                                                                 across various datasets and experimental settings in CIGL. Addi-
+labels of unlabeled set are unavailable, the class distribution of
+                                                                 tionally, in light of the strong few-shot ability of IceBerg, it can
+unlabeled set is unknown, so we are hard to conduct CIGL on the
+                                                                 also obtain state-of-the-art performance in few-shot scenarios.
+unlabeled set. Surprisingly, we found that the pseudo labels gener-
+                                                               • Benchmark Development.     We integrate diverse backbones,
+ated by the model can serve as a good estimation of unlabeled set
+                                                                 datasets, baselines, and experimental settings in our repository.
+class distribution, enabling us to perform CIGL on the pseudo label
+                                                                 Researchers can evaluate all combinations with less effort.
+set. Consequently, we propose a simple-yet-effective self-training
+IceBerg: Debiased Self-Training for Class-Imbalanced Node Classification          WWW  ’25, April 28-May 2, 2025, Sydney, NSW, Australia
+
+               Cora                    Matthew Effect                            1    2       퐶
+                                                               dataset. We have 푁퐿 ≥ 푁퐿 ≥ . . . 푁퐿 , and the imbalance ratio of
+   1.0
+                       Incorrect                                                                푁 1
+                               60                                                                 퐿
+                       Correct                                 the labeled dataset is denoted by 훾퐿 = 퐶 . Similarly, the imbalance
+                                                                                                푁퐿
+   0.8                                                                                                푐
+                                                                                                max푐 푁푈
+                               40                              ratio of the unlabeled dataset is 훾푈 = 푐 .
+                                                                                                min푐 푁
+   0.6                                                                                               푈
+
+                               20
+  Confidence 0.4                                               3   Methodology
+                               Balanced  Acc.
+                                                                                                             IceBerg
+                                0                              In this section, we will give a detailed description of . We
+       1  2  3   4  5  6   7       Cora CiteSeer PubMed CS     first introduce our debiased self-training method, Double Balancing,
+                                                               in Section 3.1. And then, we revisit model architecture from message-
+Figure 1: Left: Confidence of pseudo labels in the long-tailed passing in Section 3.2. Finally, we introduce the overall framework
+node classification task.     The first four   classes are major- of IceBerg and explain the advantages of combining the two mod-
+ity classes, and the latter three are minority classes. Right: ules mentioned above.
+Matthew Effect of standard multi-stage self-training on long-
+tailed graph datasets.                                         3.1   Double Balancing
+                                                               We start with the formulation of the self-training methods by ana-
+2   Preliminary                                                lyzing the corresponding loss function. Many existing self-training
+                                                               methods seek to minimize a supervised classification loss on la-
+Notations. To maintain consistency of notations, we use bold   beled data and an unsupervised loss on unlabeled data. Formally,
+uppercase and lowercase letters to represent matrices and vectors, the objective function is given as follows:
+and calligraphic font types to denote sets. Given an attributed graph
+                                                                            E     ℓ 푓  푣 ,푦
+                                                                             푣푖 ∈V퐿 ( 휃 ( 푖 ) 푖 )
+denoted as G = (V, A, X), where V = {푣1, 푣2, . . . , 푣푁 } is the set of                                            
+                                           푁 ×푁                   min L푠푠푙 =|      {z      }
+푁 nodes; we denote the adjacency matrix as A ∈ R , if 푣푖 and 푣 푗  휃 ∈Θ
+                                             ,  , . . . ,                      supervised
+are connected, A푖 푗 = 1, otherwise A푖 푗 = 0; X = [x1 x2 x푁 ] ∈                                                        (3)
+  푁 ×퐷                                                                        휆 E      I      푓 푣     휏 ℓ 푓  푣 ,푦
+R     is the node feature matrix, each node 푣푖 is associated with a            ·  푣푗 ∈V푈 (max( 휃 ( 푗 )) ≥ ) ( 휃 ( 푗 ) ˆ푗 )
+                                                                                                                                                                                       ,
+퐷-dimensional node feature vector x푖 . The normalized adjacency             + |                {z                 }
+matrix is represented by A˜ = D−1/2AD−1/2, where D ∈ R푁 ×푁 is a                            unsupervised
+                          Í
+diagonal degree matrix D푖푖 = 푗 A푖 푗 .                          where ℓ is Cross-Entropy (CE) loss, 휆 is a trade-off hyper-parameter
+Graph Neural Networks.    Following the diagram of Message-    to balance supervised and unsupervised loss, I(·) is an indicator
+Passing Neural Networks (MPNNs), most forward processes of     function, 휏 is the confidence threshold, and 푦ˆ is the prediction
+MPNNs can be defined as:                                       generated by model 푓휃 . If we analyze CIGL from the perspective of
+          (푙 − )             (푙 − ) (푙 − )                     domain adaptation [10], we can treat the labeled and unlabeled set
+        m   1 = PROPAGATE h    1 , h 1 |푗 ∈ N (푖) ,  (1)
+         푖                   푖     푗                           as the source domain and the test set as the target domain, therefore
+                  (푙 )             (푙 −1)                     we can rewrite Equation 3 as follows to estimate the test error:
+                 h푖  = TRANSFORM m푖     ,              (2)
+        (푙 )                                                                      푝푡 (x,푦)                푝푡 (x,푦)
+                                     푣       푙                      = Eℓ(푓 (푣푖 ),푦푖 )    + 휆 · Eℓ(푓 (푣 푗 ),푦푗 )
+where h푖   is the feature vector of node 푖 in the -th layer and error     휃       푝   ,푦         휃     ˆ  푝   ,푦
+   푙                                                                               푙 (x )                  푢 (x )
+  ( −1)                                     (푙 − )
+m푖     is the aggregated message vector from the 1 -th layer,                     푝푡 (푦)푝푡 (x|푦)               푝푡 (푦)푝푡 (x|푦)
+N (푖) is a set of neighbor nodes of node 푣푖 . PROPAGATE (P) denotes = Eℓ(푓휃 (푣푖 ),푦푖 )        + 휆 · Eℓ(푓휃 (푣 푗 ),푦ˆ푗 )
+                                                                                  푝푙 (푦)푝푙 (x|푦)              푝푢 (푦)푝푢 (x|푦)
+the message-passing function of aggregating neighbor information,                                                     (4)
+    TRANSFORM  T
+and           ( ) denotes the non-linear mapping with node fea- where 푝푙 (x,푦), 푝푢 (x,푦), and 푝푡 (x,푦) represents data distribution
+tures as input. According to the ording the model arrages the P and T of labeled set, unlabeled set, and test set respectively. 푝(푦) and
+operations, we can roughly classify the existing GNN architectures 푝(푥|푦) are class distribution and class conditional distribution. For
+into three categories: PTPT, PPTT, and TTPP [48]. Typical GNNs, simplicity, we omit the subscripts of expectation. We assume the
+such as GCN, GAT, and GraphSAGE, entangle P and T in each layer, class conditional distribution of labeled, unlabeled, and test sets
+                         PTPT PPTT
+so they can be classified as .     architecture disentangles   are consistent here, namely 푝푙 (x|푦) = 푝푢 (x|푦) = 푝푡 (x|푦) (actually
+P and T, and stacks multiple P in preprocessing. While TTPP also this assumption does not always hold, and we will explain it in the
+disentangles two operations, but embed node features first by T and next section). Since the target test class distribution is balanced,
+then the stacked P can be considered as label propagation.     and the source labeled class distribution is imbalanced, we can
+Long-Tailed Semi-supervised Node Classification. In this task, consider CIGL as a label distribution shift problem [7, 9], where
+we have a labeled node set V퐿 ⊂ V and unlabeled node set V푈 =  푝푙 (푦) ≠ 푝푡 (푦). Existing CIGL methods aim to make 푝푙 (푦) close
+V \V퐿. The target of the node classification task is to train a model to 푝푡 (푦) using the known class distribution, in order to force the
+푓휃 based on labeled nodes V퐿 to predict the classes of unlabeled model becomes unbiased.
+nodes V푈 . For the labeled node 푣푖 , it is associated with a ground- However, if we analyze the unsupervised term, we will find
+                   퐶                                     푐
+truth label y푖 ∈ {0, 1} , where 퐶 is the number of classes. Let 푁퐿 that the aforementioned approach does not work because 푝푢 (푦) is
+denote the number of samples for class 푐 in the labeled dataset, unknown. Furthermore, by observing the pseudo labels predicted
+      푐
+and 푁푈  denote the number of samples for class 푐 in the unlabeled by the model on class imbalanced datasets, we can find that: (1)
+WWW  ’25, April 28-May 2, 2025, Sydney, NSW, Australia                                                        Zhixun Li et al.
+
+because the model is biased toward majority classes, it is prone to Unlabeled   Majority Label Minority Label Pseudo Label
+generate majority pseudo labels. (2) Since the decision boundary is   Supervised Training             Self-Training
+far from the majority classes, resulting in higher confidence for the
+majority classes (as shown in Figure 1 Left). This means that if we do
+not conduct operations on the unsupervised term, traditional self-
+training algorithms will become increasingly imbalanced, leading to
+the emergence of the Matthew Effect (as shown in Figure 1 Right). So
+if the model training is balanced, i.e. we assume that the model has
+consistent pseudo labeling ability across all classes, can we solve
+this problem? Unfortunately, the answer is negative. As shown
+in Figure 5, in real-world scenarios, the costs of data collection
+and labeling vary across different classes, and the unlabeled data Figure 2: Toy example on the two-moon dataset. We utilize a
+may not be balance distributed. Additionally, the class distribution simple two-layer fully connected MLP for classification.
+between labeled and unlabeled sets could be inconsistent, which
+we refer to as label Missing Not At Random. Therefore, even if the
+model has consistent pseudo labeling capability for each class, the facilitate noise robustness:
+generated pseudo labels may still be imbalanced.
+                                                                          휆 E I      푓 푣     휏′  ℓ   ,푦  훽 ℓ   ,         ,
+   According to the above analysis, we attempt to conduct Double L푢푛푠푢푝 = − · 푣푗 (max( 휃 ( 푗 )) ≥ )( (q푗 ˆ푗 )+ · (yˆ 푗 max(q푗 )))
+Balancing for the unsupervised term. Surprisingly, due to the high                                                    (9)
+                                                                                                      훽
+accuracy of pseudo labels, they can serve as a good estimate of where yˆ is the one-hot vector of pseudo label, is a trade-off hyper-
+pseudo class distribution. First, we utilize the model to generate parameter. We simplify the subscript of expectation here.
+pseudo labels for unlabeled nodes, and we count the number of
+pseudo labels across all classes:                              3.2   Propagation then Tramsformation
+                                                               While DB can leverage pseudo labels to alleviate overfitting in mi-
+                          | V푈 |                               nority classes and effectively address label distribution shift, its
+                 ′     1  ∑︁
+                휏  =          max(푓휃 (푣 푗 )),          (5)     effectiveness  may still be suboptimal in   cases  where the number
+                     |V푈 |
+                            푗                                  of labels is extremely limited. Recall Equation 4, we analyze CIGL
+                   | V푈 |                                      from the perspective of domain adaptation and assume the class
+                   ∑︁                    ′
+              휋푐 =     1 (I(max(푓휃 (푣 푗 )) ≥ 휏 )),     (6)     conditional distributions of labeled, unlabeled, and test are consis-
+                    푗                                          tent. However, when the imbalance ratio is large, and the number
+                                                               of labeled nodes in minority classes is extremely limited, due to
+Since setting a threshold 휏 requires extensive experience and suit- selection bias [39], the distribution differences between the labeled
+able thresholds may vary across datasets, we use a dynamic thresh- set and the other two sets will increase, causing the distribution
+old here. With the help of the estimated class distribution of pseudo of unlabeled set to shift as well [22, 35]. Therefore, the assump-
+labels, we are able to balance the unsupervised loss. We utilize tion of consistent class conditional distribution does not hold, i.e.
+balanced softmax [30] here for three reasons: (1) balanced softmax 푝푙 (x|푦) ≠ 푝푢 (x|푦) ≠ 푝푡 (x|푦).
+can ensure Fisher consistency and achieves excellent performance  We conduct a toy experiment on the two-moon dataset to explain
+in CIGL; (2) when the number of pseudo labels for some classes is the selection bias problem in an extremely limited labeled set (as
+zero, it remains unaffected; (3) although the current state-of-the-art shown in Figure 2). Due to the large number of labeled samples in
+performance is based on re-sampling [14, 28], the large number of the majority class, they uniformly distribute on the half-moon dis-
+pseudo labels means that adding too many virtual ego-networks, tribution and can effectively capture the ground-truth distribution.
+which could potentially destroy the original graph structure. Finally, While the minority class only possesses two labeled samples, which
+the double balancing of unsupervised loss is formulated as follows: makes it hard to cover the ground-truth distribution. Despite we
+                                                               use self-training to generate several pseudo labels for the minority
+                 휆 E      I     푓  푣     휏′ ℓ   ,푦 ,
+      L푢푛푠푢푝 = −  ·  푣푗 ∈V푈 (max( 휃 ( 푗 )) ≥ ) (q푗 ˆ푗 ) (7)    class, they are all concentrated around the labeled samples and
+                q푗 [푐] = 푓휃 (푣 푗 )[푐] + 휇 · log 휋푐     (8)     cannot expand their distribution. Even if the pseudo labels are all
+                                                               correct and the class distribution is balanced, the minority class
+where q is the adjusted logits, and 휇 is a scaling parameter that still exhibits poorer performance compared to the majority class.
+affects the intensity of adjustment. The PyTorch-style pseudocode In order to figure out the selection bias in heavily imbalanced sce-
+is presented in Algorithm 1. We can find that just a few lines of code narios, we revisit GNNs’ architecture from message-passing. Most
+can significantly improve the performance of CIGL with almost no current CIGL work is conducted on models within PTPT framework,
+additional training overhead.                                  like GCN, GAT, and GraphSAGE. However, because of the over-
+   Although the performance of Double Balancing  is already    smoothing issue, this kind of model makes it hard to deepen the
+excellent, potential noisy labels within the pseudo labels could layers, which means labeled nodes cannot propagate supervision
+harm model performance, leading to confirmation bias. To further signals to nodes at larger propagation hops. In this work, we refer
+improve results, we propose Noise-Tolerant Double Balancing.   to this issue as the Propagation Dilemma. According to recent liter-
+Inspired by Wang et al. [37], we introduce a symmetric term to ature, we know that the main reason for performance degradation
+IceBerg: Debiased Self-Training for Class-Imbalanced Node Classification          WWW  ’25, April 28-May 2, 2025, Sydney, NSW, Australia
+
+with increased depth may lie in the T operation rather than P oper- Algorithm 1: PyTorch-style pseudocode for D-Balancing
+ation [36, 48]. Consequently, we attempt to use PPTT architecture # model: graph neural networks; get_confidence: the
+in the CIGL task. In light of the strong few-shot learning ability of function to get confidence and predictions; M:
+D2PT [24], we leverage graph diffusion-based propagation here:     existing state-of-the-art baselines; BS: balanced
+                                                                   softmax function; lambda: trade-off parameter.
+                  (푡+1)      훼 ˜  (푡 ) 훼 ,
+                X      = (1 − )AX    +  X             (10)        # Generate pseudo labels
+                                    푇
+                  Yˆ = Softmax(MLP(X( ) ))            (11)        with torch.no_grad():
+                                                                     model.eval()
+where  X(0) = X, 훼 ∈ (0, 1] is the restart probability, 푇 is the     logits = model(x, edge_index)
+number of propagation steps, and MLP is a simple fully-connected  confidence, pred_label = get_confidence(logits)
+multilayer perceptron. By increasing the number of propagation    # Dynamic Threshold
+                                                                  t = confidence[unlabel_mask].mean().item()
+steps, we found that even without using any CIGL techniques,
+                                                                  pseudo_mask = confidence.ge(t) & unlabel_mask
+performance still improves with the increase in propagation hops. # Pseudo Label Distribution Estimation
+(as shown in Table 1). This interesting experimental result supports num_list_p = [(pred_label[pseudo_mask] ==
+that few-shot is a significant challenge in heavily class-imbalanced i).sum().item() for i in range(num_cls)]
+scenarios.                                                        # Existing CIGL Methods
+   By combining all designs mentioned above, we propose our       model.train()
+simple-yet-effective method, IceBerg, which can achieve state-of- optimizer.zero_grad()
+the-art performance in class-imbalanced and few-shot scenarios. To logits, loss = M(x, edge_index, model, train_mask)
+illustrate that these modules we proposed are not simply additions, # Double Balancing (Ours)
+we list several advantages of IceBerg below:                      loss += BS(logits[pseudo_mask],
+                                                                   pred_label[pseudo_mask], num_list_u) * lambda
+• To propagate supervision signals to every node as much as pos-  # Backward Supervised and Unsupervised Loss
+  sible, we not only use pseudo labels to increase the sources of loss.backward()
+  propagation but also expand the range by increasing the number  optimizer.step()
+  of propagation hops.
+• Since parameter-free propagation can be viewed as unsupervised
+  node representation learning, it is more robust to noisy labels Table 1: In imbalanced training sets, the model’s performance
+  and better suited for the self-training framework.           (Balanced Accuracy) w.r.t. the number of propagation hops.
+• While using a large number of pseudo labels may increase some
+  gradient backpropagation overhead, by decoupling P and T, we   Hop             2     4     6     8     10    12    14
+  can precompute node features and only need to optimize the MLP, Cora (IR=10) 61.03 65.83 67.00 67.83 67.29 68.00 67.94
+                                                                 Cora (IR=20)  53.67 56.28 58.35 59.06 59.86 59.36 59.54
+  which significantly reducing training costs.
+                                                                 CiteSeer (IR=10) 44.02 46.91 49.16 49.41 49.52 49.81 49.90
+                                                                 CiteSeer (IR=20) 39.21 39.93 41.24 42.90 42.85 44.36 42.30
+4   Experiments
+In this section, we conduct systematic and extensive experiments
+to answer the following research questions:                    the number of nodes in each minority class equals the ratio of the
+• RQ1: How does IceBerg perform with respect to diverse datasets number of majority nodes in the most frequent class to imbalance
+                                                                     푁 1 훾
+  and CIGL baselines?                                          ratio ( 퐿/ 퐿). In this paper, we adopt imbalance ratios of 10 and
+• RQ2: Compared to other Few-Shot Graph Learning (FSGL) base-  20. A more intuitive class distribution is shown in Figure 5. And
+  lines, can IceBerg achieve better performance?               we also conduct few-shot experiments on three citation network
+• RQ3: How does each component and hyper-parameter influence   graphs. We randomly select 1, 2, 3, and 5 labels for each class from
+  the model performance?                                       the whole graph, and select 30 labels per class for validation, and
+• RQ4: How efficient is our model in terms of training time?   the rest for testing.
+                                                               4.1.2 Baselines. Since we evaluate the effectiveness of our pro-
+4.1   Experimental settings                                    posed IceBerg in class-imbalanced and few-shot node classifica-
+4.1.1 Benchmark datasets. We conduct experiments on 9 main-    tion scenarios, we select 17 baselines from the two branches: (I)
+stream benchmark datasets, including homophily and heterophily CIGL baselines: This branch can be further divided into three
+graphs. The statistics of datasets can be found in Table 5. We utilize categories: (i) Loss function-oriented, Re-Weight (RW) [11] simply
+the public splits in Yang et al. [42] for Cora, CiteSeer, and PubMed. up-weights the minority classes and down-weight the majority
+For CS, Physics, and ogbn-arxiv, since there is no public split, we classes in loss function according to quantity; BalancedSoftmax
+randomly select 20 nodes per class for training, 30 nodes per class (BS) [30] accommodate the label distribution shift between train-
+for validation, and the rest for testing. Following Park et al. [28] and ing and testing; ReNode (RN) [2] alleviate the topology imbalance
+Song et al. [32], we construct imbalanced training sets by removing by re-weighting the influence of labeled nodes based on their po-
+labeled nodes from the balanced training sets. Specifically, we select sition. (ii) Re-sampling-oriented, Mixup (MIX) utilizes mixup to
+minority classes as half the number of classes (퐶/2) and alter la- generate minority classes and duplicate neighborhoods; GraphENS
+beled nodes of minority classes to unlabeled nodes randomly until (ENS) [28] synthesizes the whole ego networks for minority classes;
+WWW  ’25, April 28-May 2, 2025, Sydney, NSW, Australia                                                        Zhixun Li et al.
+
+GraphSHA (SHA) [14] aims to synthesize harder minority samples.            τ=0.85    τ=0.90    τ=0.95     Dynamic
+(iii) Topology-aware adjustment, TAM [32] adaptively adjusts the       Utilization Rate             Pseudo Accuracy
+margin according to connectivity pattern, BAT [25] augments topol-                           1.0
+
+ogy to address ambivalent and distant message-passing. (II) FSGL 0.6                         0.9
+
+baselines: we select two categories for this branch: (i) decouple                            0.8
+GNNs, such as APPNP [8], SGC [38], DAGNN [23], and D2PT [24].   0.4
+                                                                                             0.7
+(ii) Semi-supervised approaches, such as Self-Training [13], M3S 0.2
+[33], CGPN [34], Meta-PN [5], and DR-GST [22].                                               0.6
+                                                                0.0
+                                                                                             0.5
+4.1.3 Evaluation metrics. To ensure a comprehensive and fair eval- 0   100 200 300  400 500     0   100 200  300 400 500
+                                                                            Epochs                       Epochs
+uation, we utilize Balanced Accuracy and Macro-F1 as metrics for
+class-imbalanced node classification. We use Accuracy to evaluate
+the performance of few-shot node classification.               Figure 3: On the Cora dataset, when the imbalance ratio (IR) is
+                                                               20, the utilization rate of unlabeled nodes and the accuracy of
+4.1.4 Implementation details. We use hyper-parameters that the pseudo labels vary across epochs under different thresholds.
+authors provided for baselines. For experiments where the authors
+did not provide hyper-parameter settings, we conducted simple
+tuning. Besides, we integrate all CIGL baselines in our experimental
+framework for a fairer comparison. All the models are implemented
+                                                                     IceBerg                                       DB
+by PyTorch version 2.0.1 with PyTorch Geometric version 2.3.1. All nodes,    can further enhance performance on top of . (3)
+                                                               IceBerg
+experiments are conducted on Nvidia GeForce RTX 3090.                  shows even more significant performance improvements
+                                                               in scenarios with extremely scarce labels (e.g. 1 label per class),
+4.2   RQ1: Performance comparison in CIGL                      which further validates its excellent few-shot learning capability.
+To answer RQ1 and verify the effectiveness of our proposed IceBerg
+in CIGL, we use seven baselines as base balancing methods, adding 4.4 RQ3: Ablation and parameter study
+two topology-aware adjustment plugins to all base balancing meth- To explore RQ3, we conducted extensive ablation studies, as shown
+ods, along with our proposed DB and IceBerg. Table 2 presents  in Table 2, Table 3, and Table 4. We evaluated across different imbal-
+the results on four benchmark datasets with an imbalanced ratio ance ratios on four datasets and found that IceBerg consistently
+of 10. From the Table 2, our observations can be threefold: (1) We outperforms DB. Additionally, to study the trade-off between quan-
+observe that on all datasets, TAM and BAT as plugins can enhance tity and quality of pseudo labels, we compare our proposed dynamic
+the performance of base balancing methods. However, DB, with its threshold with predefined fixed thresholds. The experimental re-
+straightforward idea and implementation, easily and significantly sults are shown in Figure 3. It is obvious that dynamic threshold
+outperforms both TAM and BAT. (2) IceBerg enhances the model’s can leverage a large number of pseudo labels in the early training
+few-shot capability by decoupling propagation and transformation stage (when the training epoch reaches 100, it can utilize nearly 60%
+operations, improving training efficiency while further boosting unlabeled nodes) while still maintaining a high level of accuracy
+the performance of DB. (3) Since BAT uses virtual super nodes as (about 90% prediction accuracy of pseudo labels).
+shortcuts to propagate supervision signals to more distant nodes, it
+can also be viewed as a method of augmenting supervision signals. 4.5 RQ4: Efficiency study
+Given that both BAT and DB achieve significant improvement on
+CiteSeer, we infer that the few-shot issue may be more severe on To answer RQ4, we run 1000 epochs for base balancing methods,
+CiteSeer. Additionally, we evaluated under a more imbalanced ex- TAM, BAT, DB, and IceBerg on different datasets. As shown in
+perimental setting (as shown in Table 4) and found that IceBerg’s Figure 6, TAM and DB will just provide a little training overhead
+excellent few-shot capability results in even more noticeable im- compared to BASE, while BAT may take twice as long on some
+provements. To evaluate the ability of our proposed approach, we datasets as BASE. Considering the performance enhancement of
+also conduct experiments on three larger graph datasets (as shown DB, it can be viewed as a free lunch in CIGL and FSGL. Further-
+in Table 6). We can find that IceBerg still exhibits outstanding per- more, since IceBerg precomputes the propagation process before
+formance. Furthermore, we also test the effectiveness of the model training, it can largely reduce the training costs. It can achieve even
+on the heterophilic graphs (as shown in Table 7).              better efficiency on some datasets than BASE.
+
+4.3   RQ2: Performance comparison in FSGL                      4.6   Visualization
+We also conduct experiments on Cora, CiteSeer, and PubMed datasets To better understand the balancing ability of our propose DB and
+in the few-shot node classification task. We randomly select 1, 2,3, IceBerg, we visualize the learned node representations on the
+and 5 labels for each class. The experimental results can be found in Cora dataset with imbalance ratio equal to 10 in Figure 4. We select
+Table 3. We can observe that: (1) Even in a balanced training dataset, BalancedSoftmax as the base balancing technique. And we can
+the Matthew Effect may still occur, yet DB continues to perform ex- observe that DB and IceBerg show better class boundaries and less
+ceptionally well in balanced few-shot datasets. (2) Since decoupling distribution overlapping compared to other methods, which further
+GNNs are able to propagate supervision signals to more distant proves the effectiveness of our methods.
+IceBerg: Debiased Self-Training for Class-Imbalanced Node Classification          WWW  ’25, April 28-May 2, 2025, Sydney, NSW, Australia
+
+Table 2: Model performance on benchmark graph datasets. We report balanced accuracy and macro-f1 of each independent
+CIGL baselines w.r.t. various plug-and-play modules. The best average results are highlighted in bold. Each experimental result
+is obtained from the mean of 10 repeated experiments. OOT stands for out-of-time, i.e. the time exceeds one day.
+
+     Metric                       Balance Acc. (↑)                                       Macro-F1 (↑)
+   Baselines   ERM   RW     BS   RN    MIX   ENS   SHA  Avg. (Δ)     ERM   RW    BS    RN   MIX   ENS   SHA   Avg. (Δ)
+     BASE      60.95 65.52 68.46 67.61 65.49 70.31 73.13 67.35      59.30 65.54 68.41 67.27 65.70 70.31 72.78 67.04
+     +TAM      61.63 67.25 69.90 67.18 69.96 71.52 73.22 68.66 (+1.31) 59.69 66.76 68.41 67.39 68.18 71.71 72.89 67.86 (+0.82)
+     +BAT      69.80 72.14 70.74 71.84 71.57 72.58 74.46 71.87 (+4.52) 68.68 70.31 69.53 70.59 70.93 72.28 73.30 70.80 (+3.76)
+   Cora +DB    70.14 73.60 75.20 74.22 75.11 76.07 75.08 74.20 (+6.85) 68.97 72.96 74.07 73.14 74.05 75.32 74.85 73.33 (+6.29)
+     +IceBerg  75.04 75.91 76.69 76.86 75.78 74.78 74.90 75.70 (+8.35) 74.55 75.93 75.80 76.45 75.27 74.78 73.93 75.24 (+8.20)
+     BASE      38.21 44.52 53.70 47.78 47.10 55.42 57.34 49.15      29.40 38.85 50.73 42.51 42.00 53.85 54.99 44.61
+     +TAM      43.23 43.23 55.54 48.36 50.55 57.47 59.50 51.12 (+1.97) 35.19 39.31 54.18 42.48 45.61 56.23 58.22 47.31 (+2.70)
+     +BAT      55.37 58.36 60.86 59.28 59.76 62.67 63.40 59.95 (+10.80) 54.94 57.54 60.01 58.07 57.79 62.46 62.61 59.06 (+14.45)
+     +DB       59.55 61.92 65.87 65.12 61.47 65.23 62.66 63.11 (+13.96) 56.96 59.53 64.65 64.18 58.63 64.77 60.97 61.38 (+16.77)
+   CiteSeer
+     +IceBerg  63.95 65.65 64.73 65.28 61.51 64.25 63.95 64.18 (+15.03) 62.71 65.12 63.98 64.53 58.28 63.37 61.84 62.83 ±18.22
+     BASE      65.21 70.17 72.97 71.52 72.92 71.89 74.92 71.37      55.43 66.37 70.80 67.86 71.40 71.07 73.92 68.12
+     +TAM      68.54 70.01 74.13 71.00 73.95 74.01 76.13 72.53 (+1.16) 62.96 66.75 73.27 67.18 73.08 72.41 75.31 70.13 (+2.01)
+     +BAT      67.57 73.37 74.86 OOT   73.23 76.91 75.34 73.54 (+2.17) 64.40 73.24 73.34 OOT 71.24 76.86 74.73 72.30 (+4.18)
+      DB
+
+   PubMed +    75.39 78.02 77.59 77.90 78.08 75.99 77.27 77.17 (+5.80) 71.09 75.98 76.16 76.03 76.21 74.64 75.76 75.12 (+7.00)
+     +IceBerg  78.49 77.96 76.85 78.16 78.36 76.12 76.43 77.48 (+6.11) 75.98 75.59 74.92 76.67 76.44 74.38 74.72 75.52 (+7.40)
+     BASE      74.95 80.07 84.16 80.30 81.47 84.60 86.49 81.72      70.20 77.78 83.08 78.10 79.74 83.45 84.92 79.61
+     +TAM      74.61 80.68 84.28 80.66 81.87 85.44 87.26 82.11 (+0.39) 69.88 78.72 82.72 78.61 80.05 84.81 86.13 80.13 (+0.52)
+                                 OOT                                                   OOT
+   CS +BAT     83.42 87.32 87.29       85.82 88.73 88.40 86.83 (+5.11) 78.03 85.02 83.60    83.41 86.95 86.38 83.89 (+4.28)
+     +DB       87.21 87.59 89.34 89.00 89.47 89.02 89.39 88.71 (+6.99) 83.85 84.84 87.58 86.68 88.57 87.07 87.58 86.59 (+6.98)
+     +IceBerg  86.97 88.24 88.15 88.58 89.04 89.26 89.11 88.47 (+6.75) 82.75 86.02 87.00 86.56 88.51 87.29 87.43 86.50 (+6.89)
+
+Table 3: Model performance on Cora, CiteSeer, and Pubmed with 1,2,3, and 5 labeled nodes per class. We report the classification
+accuracy of each method. The best results are highlighted in bold. Each experimental result is obtained from the mean of 10
+repeated experiments.
+
+  Dataset                  Cora                               CiteSeer                             PubMed
+  L/C           1        2        3        5        1        2        3        5        1        2        3        5
+  GCN        46.6±2.3 58.8±1.3 63.5±1.8 68.5±1.2 37.4±2.3 49.8±1.2 53.8±1.8 59.5±1.1 55.9±2.7 57.6±3.0 61.81±2.1 68.7±1.5
+  APPNP      51.9±2.8 63.0±2.5 66.8±2.0 73.3±0.8 35.8±2.1 48.9±1.6 52.6±1.7 58.1±0.7 57.4±3.5 59.1±2.8  63.6±2.2 70.4±1.6
+  SGC        51.0±3.0 59.2±3.5 64.0±3.0 70.3±2.1 34.4±2.1 47.1±3.1 50.4±2.5 60.4±1.3 55.3±3.7 57.0±2.7  58.5±2.0 63.5±2.4
+  DAGNN      54.3±2.0 62.8±1.8 67.3±1.5 73.4±0.6 44.6±1.8 53.2±1.7 56.9±1.4 59.9±1.2 57.2±3.9 60.1±3.2  61.6±3.3 68.4±3.2
+  D2PT       62.6±6.9 69.6±8.8 74.1±6.8 76.8±4.4 54.5±12.8 64.3±4.0 66.5±1.2 67.4±0.9 59.9±10.4 65.7±5.3 69.3±4.7 72.5±2.6
+  S-Training 52.6±7.9 61.8±7.2 66.5±6.7 76.2±2.1 31.6±7.6 47.8±4.4 50.3±5.8 57.8±4.9 55.6±6.8 61.5±6.5  65.1±7.3 69.5±4.7
+  M3S        50.7±7.4 61.1±5.0 70.1±3.5 76.6±1.8 38.7±9.6 44.6±8.0 57.4±6.8 63.7±6.5 55.4±10.1 67.2±4.1 70.2±4.7 69.7±3.3
+  CGPN       64.3±9.1 63.8±9.0 68.3±3.6 71.1±1.8 49.4±9.4 53.3±5.2 54.1±4.3 57.0±5.6 56.7±6.3 60.1±8.0  66.9±3.4 65.9±4.2
+  Meta-PN    55.8±3.3 72.7±2.1 74.6±2.0 76.4±1.3 34.8±4.8 42.6±3.6 56.2±1.9 59.8±4.0 54.4±0.0 63.4±1.6 69.6±0.6  73.6±1.6
+  DR-GST     50.1±11.3 62.3±7.7 68.9±7.1 76.1±5.1 42.9±9.4 53.1±4.5 57.8±5.9 63.7±2.9 56.3±9.9 61.5±9.7 63.7±4.3 69.7±5.4
+  DB         57.7±2.7 68.0±1.3 70.9±1.5 74.9±1.2 53.8±4.2 64.6±1.7 66.1±1.5 68.2±0.4 55.4±4.2 58.8±3.4  62.0±3.1 68.5±3.2
+  IceBerg    68.2±2.4 75.1±1.1 75.8±1.1 78.3±0.7 57.8±2.5 64.8±2.0 66.6±1.0 67.8±0.6 60.1±3.2 66.9±2.4  68.8±1.9 72.6±1.4
+
+5   Related Work                                               representative data augmentation method (i.e., SMOTE) and pro-
+This work is related to two research fields: Class-Imbalanced Graph poses edge predictor to fuse augmented nodes into the original
+Learning (CIGL) and Few-Shot Graph Learning (FSGL).            graph. GraphENS [28] discovers neighbor memorization phenome-
+                                                               non in imbalanced node classification, and generates minority nodes
+5.1   Class-Imbalanced Graph Learning                          by synthesizing ego-networks according to similarity. GraphSHA
+                                                               [14] only synthesizes harder training samples and blocks message-
+We will first introduce the related work in CIGL. Due to the GNNs passing from minority nodes to neighbor classes by generating
+inheriting the character of deep neural networks, GNNs perform connected edges from 1-hop subgraphs. Apart from that, some
+with biases toward majority classes when training on imbalanced methods aim to facilitate CIGL through the graph structure. TAM
+datasets. To overcome this challenge, CIGL has emerged as a promis- [32] adjusts margins node-wisely according to the extent of devia-
+ing solution that combines the strengths of graph representation tion from connectivity patterns. BAT [25] is a data augmentation
+learning and class-imbalanced learning. A great branch of this field approach, which alleviates ambivalent and distant message-passing
+is oversampling minority nodes by data augmentation to balance in imbalanced node classification. Since the numerous real-world
+the skew training label distribution. GraphSMOTE [51] leverages
+WWW  ’25, April 28-May 2, 2025, Sydney, NSW, Australia                                                        Zhixun Li et al.
+
+Table 4: Model performance on benchmark graph datasets with heavy class-imbalanced. We report balanced accuracy and
+macro-f1 of each independent CIGL baselines  w.r.t. various plug-and-play modules.
+
+     Metric                       Balance Acc. (↑)                                       Macro-F1 (↑)
+   Baselines   ERM   RW     BS   RN    MIX   ENS  SHA   Avg. (Δ)    ERM    RW    BS    RN   MIX   ENS   SHA  Avg. (Δ)
+     BASE      53.18 59.08 64.16 59.57 59.92 64.13 69.99 61.43      48.15 56.60 63.38 58.24 57.57 64.13 69.98 59.72
+     +TAM      55.50 62.15 65.34 59.15 62.87 64.13 70.66 62.82 (+1.39) 50.95 59.54 65.19 57.56 61.29 64.14 70.91 61.36 (+1.64)
+     +BAT      72.19 70.55 68.41 73.36 69.95 73.14 74.24 71.69 (+10.26) 71.07 69.60 67.29 72.22 69.04 72.33 73.16 70.67 (+10.95)
+   Cora +DB    70.63 71.96 71.43 71.20 72.80 72.18 75.50 72.24 (+10.81) 68.17 70.19 70.51 69.35 71.40 71.29 74.32 70.74 (+11.02)
+     +IceBerg  68.41 75.10 75.41 76.24 73.57 73.94 75.45 74.01 (+12.58) 67.21 74.59 74.71 75.50 72.50 72.38 74.11 73.00 (+13.28)
+     BASE      34.67 40.45 46.43 41.26 39.30 45.46 50.77 42.62      23.04 33.68 41.98 33.19 30.71 40.21 47.17 35.71
+     +TAM      37.63 42.79 48.22 42.09 40.18 47.01 52.08 44.28 (+1.66) 27.09 35.51 44.45 36.10 32.51 41.65 48.98 38.04 (+2.33)
+     +BAT      54.68 59.29 47.77 62.80 53.27 62.41 59.75 57.13 (+14.5) 50.03 57.16 46.84 61.49 48.79 61.59 58.47 54.91 (+19.20)
+     +DB       45.98 59.20 54.09 56.29 55.72 61.18 54.37 55.26 (+12.64) 39.35 56.93 50.74 54.29 51.63 60.64 50.82 52.05 (+16.34)
+   CiteSeer
+     +IceBerg  51.01 59.06 65.88 60.57 57.14 62.45 58.26 59.19 (+16.57) 44.75 55.91 64.40 58.01 53.26 61.97 55.25 56.22 (+20.51)
+     BASE      61.72 66.28 68.46 67.63 65.96 68.67 72.72 67.34      47.81 58.53 66.89 59.29 62.71 65.22 71.23 61.66
+     +TAM      63.42 68.25 69.86 67.10 68.52 69.83 73.18 68.59 (+1.25) 54.12 64.82 69.82 62.30 64.34 66.19 72.15 64.82 (+3.16)
+     +BAT      71.42 71.74 72.39 OOT  73.12 73.77 71.56 72.33 (+4.99) 67.96 69.39 71.59 OOT 70.11 72.14 69.41 70.10 (+8.44)
+      DB
+
+   PubMed +    78.10 77.42 75.51 76.53 76.55 76.22 74.33 76.38 (+9.04) 75.39 74.86 72.99 74.12 74.59 73.42 72.15 73.93 (+12.27)
+     +IceBerg  76.94 77.02 76.48 76.31 76.45 76.83 74.13 76.30 (+8.96) 74.00 74.49 74.06 73.64 74.75 74.02 72.79 73.96 (+12.30)
+     BASE      63.86 72.46 77.24 71.87 73.45 78.90 83.79 74.51      55.45 67.39 75.29 67.79 68.94 76.54 80.91 70.33
+     +TAM      67.82 74.99 78.22 74.18 75.98 80.21 84.41 76.54 (+2.03) 61.67 71.35 76.92 71.51 73.02 78.97 82.32 73.68 (+3.35)
+                                 OOT                                                  OOT
+   CS +BAT     77.32 85.24 84.17      83.08 88.07 87.65 84.25 (+9.74) 70.66 82.52 79.30     79.53 85.75 85.43 80.53 (+10.20)
+     +DB       79.45 83.27 85.16 85.47 85.27 86.35 86.67 84.52 (+10.01) 72.32 78.40 82.60 81.75 81.15 83.79 84.11 80.58 (+10.25)
+     +IceBerg  81.10 82.98 84.46 84.97 85.36 85.13 86.88 84.41 (+9.90) 74.37 76.49 82.49 81.54 81.67 82.57 84.42 80.50 (+10.17)
+
+        Vanilla            BASE               TAM              technique to refine the self-training process. Meta-PN [5] utilizes
+                                                               meta-learning label propagation to construct a pseudo label set and
+                                                               decouple the model architecture to allow larger receptive fields.
+                                                                  Although existing literature have achieved considerable success
+                                                               in CIGL and FSGL, there is no work analyzes the connection be-
+         BAT                DB                IceBerg          tween the two research fields. In this work, we first time studythe
+                                                               Matthew effect challenge in CIGL and FSGL, and achieve the state-
+                                                               of-the-art performance in two fields with one unified framework.
+
+                                                               6   Conclusion
+                                                               In this paper, we provide a key statement that the labeled nodes in
+      Figure 4: Visualization of node representations.         the graph are just the tip of the iceberg, and if we could effectively
+                                                               utilize a large number of unlabeled nodes, we can significantly
+                                                               and easily achieve state-of-the-art performance. We first study
+applications of CIGL, its techniques have been applied to many the Matthew Effect in  the self-training framework, and based on
+other tasks as well, e.g., graph anomaly detection [27, 53], graph theoretical analysis, we propose Double Balancing. To avoid Con-
+fairness learning [19], and graph data pruning [43].           firmation Bias, we propose Noise-Tolerant Double Balancing. Addi-
+                                                               tionally, in the heavy class-imbalanced scenarios, minority classes
+5.2   Few-Shot Graph Learning                                  may also face few-shot issues. Therefore, we disentangle the prop-
+Besides, modern artificial intelligence is heavily dependent ona agation and transformation operations to augmente supervision
+large number of high quality labels. Considering complexity and signals to distant nodes. Combining all the above designs, we pro-
+heterogeneity of graph-structured data, human labeling is unbear- pose IceBerg, a simple-yet-effective approach to class-imbalanced
+ably laborious. Therefore, there are some works that aim to figure and few-shot node classification. It can achieve excellent perfor-
+out the few-shot issues in graph machine learning. DAGNN [23] and mance with good efficiency on various benchmark datasets. At last,
+D2PT [24] disentangle propagation and transformation to transmit we suggest that future research works pay more attention to the
+the supervision signals to more distant nodes. Additionally, D2PT large number of unlabeled nodes present in the graph, rather than
+utilizes dual-channel contrastive learning to enhance its capability just treat CIGL or FSGL tasks as supervised learning tasks.
+of capturing unsupervised knowledge. And self-training is also a
+promising technology to alleviate label scarcity with the help of
+pseudo labels. Liu et al. [22] find that high-confidence pseudo labels Acknowledgments
+may introduce distribution shift, so they reweigh the loss func- This work was partially supported by the Research Grants Council
+tion by information gain. M3S [33] leverages the DeepClustering of Hong Kong, No. 14205520.
+IceBerg: Debiased Self-Training for Class-Imbalanced Node Classification                                          WWW    ’25, April 28-May 2, 2025, Sydney, NSW, Australia
+
+References                                                                                    of the 29th ACM SIGKDD Conference on Knowledge Discovery and Data Mining.
+  [1] Eric Arazo, Diego Ortego, Paul Albert, Noel E O’Connor, and Kevin McGuinness.           1559–1571.
+      2020. Pseudo-labeling and confirmation bias in deep   semi-supervised learning.   [25]  Zhining Liu, Zhichen Zeng, Ruizhong Qiu, Hyunsik Yoo, David Zhou, Zhe Xu,
+      In 2020 International joint conference on neural networks (IJCNN). IEEE, 1–8.           Yada Zhu, Kommy Weldemariam, Jingrui He, and Hanghang Tong. 2023. Topo-
+  [2] Deli Chen, Yankai Lin, Guangxiang Zhao, Xuancheng Ren, Peng Li, Jie Zhou, and           logical augmentation for class-imbalanced node classification. arXiv preprint
+      Xu Sun. 2021. Topology-imbalance learning for semi-supervised node classifica-          arXiv:2308.14181 (2023).
+      tion. Advances in Neural Information Processing Systems 34 (2021), 29885–29897.   [26]  Yuankai Luo, Lei Shi, and Xiao-Ming Wu. 2024. Classic GNNs are Strong Baselines:
+  [3] Yin Cui, Menglin Jia, Tsung-Yi Lin, Yang Song, and Serge Belongie. 2019. Class-         Reassessing GNNs for Node Classification. arXiv preprint arXiv:2406.08993 (2024).
+      balanced loss based on effective number of samples. In Proceedings of the IEEE/CVF [27] Xiaoxiao Ma, Ruikun Li, Fanzhen Liu, Kaize Ding, Jian Yang, and Jia Wu. 2024.
+      conference on computer vision and pattern recognition. 9268–9277.                       Graph Anomaly Detection with Few Labels: A Data-Centric Approach. In   Pro-
+  [4] Kaize Ding, Xiaoxiao Ma, Yixin Liu, and Shirui Pan. 2024. Divide and Denoise: Em-       ceedings of the 30th ACM SIGKDD Conference on Knowledge Discovery and Data
+      powering Simple Models for Robust Semi-Supervised Node Classification against           Mining. 2153–2164.
+      Label Noise. In Proceedings of the 30th ACM SIGKDD Conference on Knowledge        [28]  Joonhyung Park, Jaeyun Song, and Eunho Yang. 2021. Graphens: Neighbor-aware
+      Discovery and Data Mining. 574–584.                                                     ego network synthesis for class-imbalanced node classification. In International
+  [5] Kaize Ding, Jianling Wang, James Caverlee, and Huan Liu. 2022. Meta propagation         conference on learning representations.
+      networks for graph few-shot semi-supervised learning. In Proceedings of the AAAI  [29]  Liang Qu, Huaisheng Zhu, Ruiqi Zheng, Yuhui Shi, and Hongzhi Yin. 2021. Im-
+      conference on artificial intelligence, Vol. 36. 6524–6531.                              gagn: Imbalanced network embedding via generative adversarial graph networks.
+  [6] Yingtong Dou, Zhiwei Liu, Li Sun, Yutong Deng, Hao Peng, and Philip S Yu. 2020.         In Proceedings of the 27th ACM SIGKDD conference on knowledge discovery & data
+      Enhancing graph neural network-based fraud detectors against camouflaged                mining. 1390–1398.
+      fraudsters. In Proceedings of the 29th ACM international conference on information [30] Jiawei Ren, Cunjun Yu, Xiao Ma, Haiyu Zhao, Shuai Yi, et al. 2020. Balanced
+     & knowledge management. 315–324.                                                         meta-softmax for long-tailed visual recognition. Advances in neural information
+  [7] Saurabh Garg, Yifan Wu, Sivaraman Balakrishnan, and Zachary Lipton. 2020. A             processing systems 33 (2020), 4175–4186.
+      unified view of label shift estimation. Advances in Neural Information Processing [31]  Min Shi, Yufei Tang, Xingquan Zhu, David Wilson, and Jianxun Liu. 2020. Multi-
+      Systems 33 (2020), 3290–3300.                                                           class imbalanced graph convolutional network learning. In Proceedings of the
+  [8] Johannes Gasteiger, Aleksandar Bojchevski, and Stephan Günnemann. 2018.                 Twenty-Ninth International Joint Conference on Artificial Intelligence (IJCAI-20).
+      Predict then propagate: Graph neural networks meet personalized pagerank.         [32]  Jaeyun Song, Joonhyung Park, and Eunho Yang. 2022. TAM: topology-aware
+      arXiv preprint arXiv:1810.05997 (2018).                                                 margin loss for class-imbalanced node classification. In International Conference
+  [9] Youngkyu Hong, Seungju Han, Kwanghee Choi, Seokjun Seo, Beomsu Kim,                     on Machine Learning. PMLR, 20369–20383.
+      and Buru Chang. 2021. Disentangling label distribution for long-tailed visual     [33]  Ke Sun, Zhouchen Lin, and Zhanxing Zhu. 2020. Multi-stage self-supervised
+      recognition. In Proceedings of the IEEE/CVF conference on computer vision and           learning for graph convolutional networks on graphs with few labeled nodes. In
+      pattern recognition. 6626–6636.                                                         Proceedings of the AAAI conference on artificial intelligence, Vol. 34. 5892–5899.
+[10]  Muhammad Abdullah Jamal, Matthew Brown, Ming-Hsuan Yang, Liqiang Wang,            [34]  Sheng Wan, Yibing Zhan, Liu Liu, Baosheng Yu, Shirui Pan, and Chen Gong. 2021.
+      and Boqing Gong. 2020. Rethinking class-balanced methods for long-tailed visual         Contrastive graph poisson networks: Semi-supervised learning with extremely
+      recognition from a domain adaptation perspective. In Proceedings of the IEEE/CVF        limited labels. Advances in Neural Information Processing Systems 34 (2021),
+      conference on computer vision and pattern recognition. 7610–7619.                       6316–6327.
+[11]  Nathalie Japkowicz and Shaju Stephen. 2002. The class imbalance problem: A        [35]  Fali Wang, Tianxiang Zhao, and Suhang Wang. 2024. Distribution Consistency
+      systematic study. Intelligent data analysis 6, 5 (2002), 429–449.                       based Self-Training for Graph Neural Networks with Sparse Labels. In Proceedings
+[12]  Bingyi Kang, Saining Xie, Marcus Rohrbach, Zhicheng Yan, Albert Gordo, Jiashi           of the 17th ACM International Conference on Web Search and Data Mining. 712–
+      Feng, and Yannis Kalantidis. 2019. Decoupling representation and classifier for         720.
+      long-tailed recognition. arXiv preprint arXiv:1910.09217 (2019).                  [36] Kun Wang, Guohao Li, Shilong Wang, Guibin Zhang, Kai Wang, Yang You, Jun-
+[13]  Qimai Li, Zhichao Han, and Xiao-Ming Wu. 2018. Deeper insights into graph               feng Fang, Xiaojiang Peng, Yuxuan Liang, and Yang Wang. 2024. The Snowflake
+      convolutional networks for semi-supervised learning. In Proceedings of the AAAI         Hypothesis: Training and Powering GNN with One Node One Receptive Field.
+      conference on artificial intelligence, Vol. 32.                                         In Proceedings of the 30th ACM SIGKDD Conference on Knowledge Discovery and
+[14]  Wen-Zhi Li, Chang-Dong Wang, Hui Xiong, and Jian-Huang Lai. 2023. Graphsha:             Data Mining. 3152–3163.
+      Synthesizing harder samples for class-imbalanced node classification. In Pro-     [37]  Yisen Wang, Xingjun Ma, Zaiyi Chen, Yuan Luo, Jinfeng Yi, and James Bailey. 2019.
+      ceedings of the 29th ACM SIGKDD Conference on Knowledge Discovery and Data              Symmetric cross entropy for robust learning with noisy labels. In Proceedings of
+      Mining. 1328–1340.                                                                      the IEEE/CVF international conference on computer vision. 322–330.
+[15]  Yuhan Li, Zhixun Li, Peisong Wang, Jia Li, Xiangguo Sun, Hong Cheng, and          [38]  Felix Wu, Amauri Souza, Tianyi Zhang, Christopher Fifty, Tao Yu, and Kilian
+      Jeffrey   Xu Yu. 2023. A survey of graph meets large language model: Progress           Weinberger. 2019. Simplifying graph convolutional networks. In International
+      and future directions. arXiv preprint arXiv:2311.12399 (2023).                          conference on machine learning. PMLR, 6861–6871.
+[16]  Yuhan Li, Peisong Wang, Zhixun Li, Jeffrey     Xu Yu, and Jia Li. 2024. Zerog:    [39]  Jing Xu, Xu Luo, Xinglin Pan, Yanan Li, Wenjie Pei, and Zenglin Xu. 2022. Alle-
+      Investigating cross-dataset zero-shot transferability in graphs. In Proceedings         viating the sample selection bias in few-shot learning by removing projection
+      of the 30th ACM SIGKDD Conference on Knowledge Discovery and Data Mining.               to the centroid. Advances in neural information processing systems 35 (2022),
+      1725–1735.                                                                              21073–21086.
+[17]  Yuhan Li, Peisong Wang, Xiao Zhu, Aochuan Chen, Haiyun Jiang, Deng Cai,           [40]  Yihao Xue, Kyle Whitecross, and Baharan Mirzasoleiman. 2022. Investigating
+      Victor Wai Kin Chan, and Jia Li. 2024. Glbench: A comprehensive benchmark for           why contrastive learning benefits robustness against label noise. In International
+      graph with large language models. arXiv preprint arXiv:2407.07457 (2024).               Conference on Machine Learning. PMLR, 24851–24871.
+[18]  Zhixun Li, Dingshuo Chen, Qiang Liu, and Shu Wu. 2022. The devil is in the        [41]  Liang Yan, Shengzhong Zhang, Bisheng Li, Min Zhou, and Zengfeng Huang. 2023.
+      conflict: Disentangled information graph neural networks for fraud detection. In        UNREAL: Unlabeled Nodes Retrieval and Labeling for Heavily-imbalanced Node
+      2022 IEEE International Conference on Data Mining (ICDM). IEEE, 1059–1064.              Classification. arXiv preprint arXiv:2303.10371 (2023).
+[19]  Zhixun Li, Yushun Dong, Qiang Liu, and Jeffrey    Xu Yu. 2024. Rethinking Fair    [42]  Zhilin Yang, William Cohen, and Ruslan Salakhudinov. 2016. Revisiting semi-
+      Graph Neural Networks from Re-balancing. In    Proceedings of the 30th ACM              supervised learning with graph embeddings. In International conference on ma-
+      SIGKDD Conference on Knowledge Discovery and Data Mining. 1736–1745.                    chine learning. PMLR, 40–48.
+[20]  Zhixun Li, Xin Sun, Yifan Luo, Yanqiao Zhu, Dingshuo Chen, Yingtao Luo, Xi-       [43]  Guibin Zhang, Haonan Dong, Yuchen Zhang, Zhixun Li, Dingshuo Chen, Kai
+      angxin Zhou, Qiang Liu, Shu Wu, Liang Wang, et al.  2024. GSLB: the graph               Wang, Tianlong Chen, Yuxuan Liang, Dawei Cheng, and Kun Wang. 2024. GDeR:
+      structure learning benchmark. Advances in Neural Information Processing Systems         Safeguarding Efficiency, Balancing, and Robustness via Prototypical Graph Prun-
+      36 (2024).                                                                              ing. arXiv preprint arXiv:2410.13761 (2024).
+[21]  T Lin. 2017. Focal Loss for Dense Object Detection. arXiv preprint arXiv:1708.02002 [44] Guibin Zhang, Xiangguo Sun, Yanwei Yue, Chonghe Jiang, Kun Wang, Tianlong
+      (2017).                                                                                 Chen, and Shirui Pan. 2024. Graph sparsification via mixture of graphs. arXiv
+[22]  Hongrui Liu, Binbin Hu, Xiao Wang, Chuan Shi, Zhiqiang Zhang, and Jun Zhou.             preprint arXiv:2405.14260 (2024).
+      2022. Confidence     may cheat: Self-training on graph neural networks under      [45]  Guibin Zhang, Yanwei Yue, Kun Wang, Junfeng Fang, Yongduo Sui, Kai Wang,
+      distribution shift. In Proceedings of the ACM Web Conference 2022. 1248–1258.           Yuxuan Liang, Dawei Cheng, Shirui Pan, and Tianlong Chen. 2024. Two heads
+[23]  Meng Liu, Hongyang Gao, and Shuiwang Ji. 2020. Towards deeper graph neural              are better than one: Boosting graph sparse training via semantic and topological
+      networks. In Proceedings of the 26th ACM SIGKDD international conference on             awareness. arXiv preprint arXiv:2402.01242 (2024).
+      knowledge discovery & data mining. 338–348.                                       [46]  Qinggang Zhang, Shengyuan Chen, Yuanchen Bei, Zheng Yuan, Huachi Zhou,
+[24]  Yixin Liu, Kaize Ding, Jianling Wang, Vincent Lee, Huan Liu, and Shirui Pan. 2023.      Zijin Hong, Junnan Dong, Hao Chen, Yi Chang, and Xiao Huang. 2025. A Sur-
+      Learning strong graph neural networks with weak information. In Proceedings             vey of Graph Retrieval-Augmented Generation for Customized Large Language
+                                                                                              Models. arXiv preprint arXiv:2501.13958 (2025).
+WWW     ’25, April 28-May 2, 2025, Sydney, NSW, Australia                                                                                                 Zhixun Li et al.
+
+[47]  Wentao Zhang, Xinyi Gao, Ling Yang, Meng Cao, Ping Huang, Jiulong Shan,
+      Hongzhi Yin, and Bin Cui. 2024. BIM: Improving Graph Neural Networks with
+      Balanced Influence   Maximization. In 2024 IEEE 40th International Conference on
+      Data Engineering (ICDE). IEEE, 2931–2944.
+[48]  Wentao Zhang, Zeang Sheng, Ziqi Yin, Yuezihan Jiang, Yikuan Xia, Jun Gao, Zhi
+      Yang, and Bin Cui. 2022. Model degradation hinders deep graph neural networks.
+      In Proceedings of the 28th ACM SIGKDD conference on knowledge discovery and
+      data mining. 2493–2503.
+[49]  Chuang Zhao, Xinyu Li, Ming He, Hongke Zhao, and Jianping Fan. 2023. Sequen-
+      tial Recommendation via an Adaptive Cross-domain Knowledge Decomposition.
+      In Proceedings of the 32nd ACM International Conference on Information and
+      Knowledge Management. 3453–3463.
+[50]  Chuang Zhao, Xing Su, Ming He, Hongke Zhao, Jianping Fan, and Xiaomeng
+      Li. 2024. Collaborative Knowledge Fusion: A Novel Approach for Multi-task
+      Recommender Systems via LLMs.   arXiv preprint arXiv:2410.20642 (2024).
+[51]  Tianxiang Zhao, Xiang Zhang, and Suhang Wang. 2021. Graphsmote: Imbalanced
+      node classification  on graphs with    graph neural networks. In Proceedings of the
+      14th ACM international conference on web search and data mining. 833–841.
+[52]  Mengting Zhou and Zhiguo Gong. 2023. GraphSR: a data augmentation algorithm
+      for imbalanced node classification. In Proceedings of the AAAI Conference on
+      Artificial Intelligence, Vol. 37. 4954–4962.
+[53]  Shuang Zhou, Xiao Huang, Ninghao Liu, Huachi Zhou, Fu-Lai Chung, and Long-
+      Kai Huang. 2023. Improving generalizability of graph anomaly detection models
+      via data augmentation. IEEE Transactions on Knowledge and Data Engineering 35,
+      12 (2023), 12721–12735.
+IceBerg: Debiased Self-Training for Class-Imbalanced Node Classification          WWW  ’25, April 28-May 2, 2025, Sydney, NSW, Australia
+
+A    Appendix                                                  A.3    Additional Experiments
+A.1    Details of Datasets                                     In this subsection, we present the experimental results on large and
+                                                               heterophilic graphs. In Table 6, each of the three datasets contains
+We present the labeled and unlabeled class distributions of Cora,
+                                                               more than 19,000 nodes and 126,000 edges. For Physics, ogbn-arxiv,
+CiteSeer, and PubMed in Figure 5. We can observe that the class dis-
+                                                               Penn94, and Roman-Empire, we follow the setting of step imbalance.
+tributions of the two sets are dismatched. Additionally, we provide
+                                                               For CoraFull, since it naturally exhibits a strong imbalance, we
+the detailed statistics of benchmark datasets in Table 5.
+                                                               randomly select 10% of the samples as the training set, 40% as the
+                                                               validation set, and 50% as the test set.
+         Cora              CiteSeer           PubMed
+
+                    500                                            Table 6: Model performance on large graph datasets.
+ 500                                   5000
+                    250
+                                                                   Metric       Balance Acc. (↑)         Macro-F1 (↑)
+  0                  0                   0
+       2   4   6          2    4    6            2                Baselines ERM RW   BS  MIX ENS  ERM  RW   BS  MIX  ENS
+  20                 20                 20                         BASE   72.24 83.80 88.50 84.42 OOT 71.86 84.18 86.97 85.05 OOT
+                                                                   +TAM   70.80 83.18 88.87 84.71 OOT 69.69 83.26 86.86 85.10 OOT
+                                                                   +BAT   89.21 89.37 89.78 89.83 OOT 88.64 87.42 87.32 89.39 OOT
+  10                 10                 10
+                                                                 Physics +IceBerg 91.63 91.84 91.94 89.91 OOT 89.89 89.61 89.79 89.94 OOT
+                                                                   BASE   23.59 25.53 27.16 OOM OOM 12.07 16.02 17.94 OOM OOM
+  0                  0                   0
+       2   4   6          2    4    6            2                 +TAM   23.05 24.52 25.88 OOM OOM 14.58 14.58 16.88 OOM OOM
+                                                                   +BAT   25.28 27.74 27.49 OOM OOM 17.78 17.78 18.04 OOM OOM
+                                                                   +IceBerg 28.13 28.97 28.78 OOM OOM 18.86 18.86 18.60 OOM OOM
+                                                                 ogbn-arxiv
+Figure 5: The first row is   the class distribution of the unla-   BASE   52.75 53.01 57.21 57.16 57.72 54.00 54.14 54.67 55.96 55.97
+                                                                   +TAM   47.25 47.21 51.24 55.11 56.79 48.10 47.87 48.88 54.39 55.48
+beled set, and the second row is that of the labeled set.          +BAT   54.93 54.90 57.26 57.21 57.77 55.23 55.31 53.19 55.64 55.77
+
+                                                                 CoraFull +IceBerg 56.49 56.25 57.44 58.26 58.67 55.66 55.58 54.62 55.48 55.35
+
+
+                                                                   Table 7: Model performance on heterophilic graphs.
+               Table 5: Statistics of datasets
+
+                                                                   Metric        Balance Acc. (↑)        Macro-F1 (↑)
+  Dataset        Type    #nodes  #edges  #features #classes       Baselines ERM RW   BS  MIX  ENS ERM  RW   BS   MIX ENS
+  Cora         Homophily  2,708   10,556   1,433     7             BASE    60.67 74.31 72.79 74.30 OOT 53.24 74.13 72.76 74.19 OOT
+                                                                   +TAM    64.32 70.07 64.62 70.58 OOT 63.74 69.88 63.35 70.44 OOT
+  CiteSeer     Homophily  3,327   9,104    3,703     6             +BAT    63.37 74.14 73.46 74.49 OOT 58.89 74.02 73.41 74.39 OOT
+  PubMed       Homophily  19,717  88,648   500       3           Penn94 +IceBerg 68.62 74.84 73.84 74.77 OOT 68.00 74.76 73.61 74.69 OOT
+  CS           Homophily  18,333 163,788   6,805     15            BASE    39.18 42.21 44.66 - -  37.96 38.85 39.93 - -
+  Physics      Homophily  34,493 495,924   8,415     5             +TAM    36.90 39.61 41.25 - -  34.88 35.78 36.33 - -
+                                                                   +BAT    38.61 42.21 44.21 - -  37.35 38.60 39.51 - -
+  ogbn-arxiv   Homophily 169,343 1,116,243 129       40
+                                                                 R-Empire +IceBerg 39.94 42.90 44.52 - - 38.12 39.30 39.19 - -
+  CoraFull     Homophily  19,793 126,842   8,710     70
+  Penn94       Heterophily 41,554 1,362,229 5        2
+  Roman-Empire Heterophily 22,662 32,927   300       18
+
+
+A.2    Efficiency Study
+Large-scale graph inputs present significant computational chal-
+lenges that impede feature aggregation in GNN training and infer-
+ence [45]. Therefore, the efficiency of GNN is important in practical
+applications. Thanks to disentangled propagation and transforma-
+tion, our proposed IceBerg exhibits superior efficiency.
+
+
+         BASE
+  60     TAM
+         BAT
+  40     DB
+         IceBerg
+
+
+  Training  Time 20
+
+   0
+          Cora        CiteSeer    PubMed         CS
+
+Figure 6: The time it takes to run 1000 epochs across datasets.

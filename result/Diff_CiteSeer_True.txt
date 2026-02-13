@@ -1,0 +1,8 @@
+IR: 10.0, net: Diff, n_layer: 2, feat_dim: 128, lr: 0.1, weight_decay: 0.005, dropout: 0.5 
+            TAM: False, BAT: False, ENS: False, SHA: False, loss_type: bs, no_pseudo: False, label_per_class: 20, T: 20, alpha: 0.05, lamda_schedule: none, lamda_rampup: 50
+Test Acc: 0.6771 +- 0.0207, BAcc: 0.6593 +- 0.0167, F1: 0.6524 +- 0.0192, Val Acc F1: 0.6735
+
+IR: 10.0, net: Diff, n_layer: 2, feat_dim: 128, lr: 0.1, weight_decay: 0.005, dropout: 0.5 
+            TAM: False, BAT: False, ENS: False, SHA: False, loss_type: bs, no_pseudo: False, label_per_class: 20, T: 20, alpha: 0.1, lamda_schedule: none, lamda_rampup: 50
+Test Acc: 0.6853 +- 0.0123, BAcc: 0.6673 +- 0.0122, F1: 0.6602 +- 0.0144, Val Acc F1: 0.6872
+

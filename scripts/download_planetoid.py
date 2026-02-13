@@ -52,11 +52,15 @@ def download_planetoid(name):
     for suf in RAW_SUFFIXES:
         fname = prefix + suf
         path = os.path.join(raw_dir, fname)
-        if os.path.isfile(path):
+        # 已存在且非空则跳过；空文件(0字节)会导致 Planetoid 报 "Ran out of input"，必须重下
+        if os.path.isfile(path) and os.path.getsize(path) > 0:
             print(f"  已有: {fname}")
             continue
+        if os.path.isfile(path) and os.path.getsize(path) == 0:
+            print(f"  重下(空文件): {fname} ...")
+        else:
+            print(f"  下载: {fname} ...")
         url = BASE_URL + fname
-        print(f"  下载: {fname} ...")
         if not download_file(url, path):
             print(f"  失败: {fname}")
             all_ok = False

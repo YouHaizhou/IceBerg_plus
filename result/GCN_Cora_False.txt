@@ -1,0 +1,32 @@
+IR: 10.0, net: GCN, n_layer: 2, feat_dim: 256, lr: 0.01, weight_decay: 0.0005, dropout: 0.5 
+            TAM: False, BAT: False, ENS: False, SHA: False, loss_type: ce, no_pseudo: True, label_per_class: 20, T: 10, alpha: 0.05
+Test Acc: 0.6598 +- 0.0057, BAcc: 0.5895 +- 0.0097, F1: 0.5722 +- 0.0138, Val Acc F1: 0.6327
+
+IR: 10.0, net: GCN, n_layer: 2, feat_dim: 256, lr: 0.01, weight_decay: 0.0005, dropout: 0.5 
+            TAM: False, BAT: False, ENS: False, SHA: False, loss_type: rw, no_pseudo: True, label_per_class: 20, T: 10, alpha: 0.05
+Test Acc: 0.6849 +- 0.0091, BAcc: 0.6229 +- 0.0126, F1: 0.6132 +- 0.0164, Val Acc F1: 0.6638
+
+IR: 10.0, net: GCN, n_layer: 2, feat_dim: 256, lr: 0.01, weight_decay: 0.0005, dropout: 0.5 
+            TAM: False, BAT: False, ENS: False, SHA: False, loss_type: bs, no_pseudo: True, label_per_class: 20, T: 10, alpha: 0.05
+Test Acc: 0.7268 +- 0.0051, BAcc: 0.6927 +- 0.0067, F1: 0.6886 +- 0.0058, Val Acc F1: 0.7193
+
+IR: 10.0, net: GCN, n_layer: 2, feat_dim: 256, lr: 0.01, weight_decay: 0.0005, dropout: 0.5 
+            TAM: False, BAT: False, ENS: False, SHA: False, loss_type: rn, no_pseudo: True, label_per_class: 20, T: 10, alpha: 0.05
+Test Acc: 0.6884 +- 0.0059, BAcc: 0.6262 +- 0.0098, F1: 0.6197 +- 0.0122, Val Acc F1: 0.6723
+
+IR: 10.0, net: GCN, n_layer: 2, feat_dim: 256, lr: 0.01, weight_decay: 0.0005, dropout: 0.5 
+            TAM: False, BAT: False, ENS: False, SHA: False, loss_type: ce, no_pseudo: True, label_per_class: 20, T: 10, alpha: 0.05
+Test Acc: 0.6906 +- 0.0044, BAcc: 0.6306 +- 0.0085, F1: 0.6244 +- 0.0107, Val Acc F1: 0.6762
+
+IR: 10.0, net: GCN, n_layer: 2, feat_dim: 256, lr: 0.01, weight_decay: 0.0005, dropout: 0.5 
+            TAM: False, BAT: False, ENS: True, SHA: False, loss_type: ce, no_pseudo: True, label_per_class: 20, T: 10, alpha: 0.05
+Test Acc: 0.7303 +- 0.0059, BAcc: 0.6821 +- 0.0093, F1: 0.6823 +- 0.0102, Val Acc F1: 0.7279
+
+IR: 10.0, net: GCN, n_layer: 2, feat_dim: 256, lr: 0.01, weight_decay: 0.0005, dropout: 0.5 
+            TAM: True, BAT: False, ENS: False, SHA: False, loss_type: ce, no_pseudo: True, label_per_class: 20, T: 10, alpha: 0.05
+Test Acc: 0.6546 +- 0.0068, BAcc: 0.5895 +- 0.0110, F1: 0.5627 +- 0.0150, Val Acc F1: 0.6240
+
+IR: 10.0, net: GCN, n_layer: 2, feat_dim: 256, lr: 0.01, weight_decay: 0.0005, dropout: 0.5 
+            TAM: False, BAT: True, ENS: False, SHA: False, loss_type: ce, no_pseudo: True, label_per_class: 20, T: 10, alpha: 0.05
+Test Acc: 0.7502 +- 0.0029, BAcc: 0.7158 +- 0.0074, F1: 0.7079 +- 0.0076, Val Acc F1: 0.7296
+

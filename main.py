@@ -20,10 +20,10 @@ if __name__ == '__main__':
         data.y = data.y.reshape(1, -1)[0]
 
     setting_log = "IR: {}, net: {}, n_layer: {}, feat_dim: {}, lr: {}, weight_decay: {}, dropout: {} \n\
-            TAM: {}, BAT: {}, ENS: {}, SHA: {}, loss_type: {}, no_pseudo: {}, label_per_class: {}, T: {}, alpha: {}".format(
+            TAM: {}, BAT: {}, ENS: {}, SHA: {}, loss_type: {}, no_pseudo: {}, label_per_class: {}, T: {}, alpha: {}, lamda_schedule: {}, lamda_rampup: {}".format(
             str(args.imb_ratio), args.net, str(args.n_layer), str(args.feat_dim), str(args.lr),
             str(args.weight_decay), str(args.dropout), str(args.tam), str(args.bat), str(args.ens), str(args.sha), str(args.loss_type),
-            str(args.no_pseudo), str(args.label_per_class), str(args.T), str(args.alpha))
+            str(args.no_pseudo), str(args.label_per_class), str(args.T), str(args.alpha), str(args.lamda_schedule), str(args.lamda_rampup))
 
     avg_val_acc_f1, avg_test_acc, avg_test_bacc, avg_test_f1 = [], [], [], []
 
@@ -38,9 +38,12 @@ if __name__ == '__main__':
         avg_test_f1.append(test_f1)
 
     ## Calculate statistics ##
-    acc_CI =  (statistics.stdev(avg_test_acc) / (args.runs ** (1/2)))
-    bacc_CI =  (statistics.stdev(avg_test_bacc) / (args.runs ** (1/2)))
-    f1_CI =  (statistics.stdev(avg_test_f1) / (args.runs ** (1/2)))
+    if args.runs >= 2:
+        acc_CI = statistics.stdev(avg_test_acc) / (args.runs ** (1/2))
+        bacc_CI = statistics.stdev(avg_test_bacc) / (args.runs ** (1/2))
+        f1_CI = statistics.stdev(avg_test_f1) / (args.runs ** (1/2))
+    else:
+        acc_CI = bacc_CI = f1_CI = 0.0
     avg_acc = statistics.mean(avg_test_acc)
     avg_bacc = statistics.mean(avg_test_bacc)
     avg_f1 = statistics.mean(avg_test_f1)
@@ -60,3 +63,12 @@ if __name__ == '__main__':
     with open(out_path, 'a+') as f:
         f.write(log)
         f.write('\n\n')
+
+    # Optional merged summary output (append mode)
+    if args.out_file is not None:
+        out_dir = osp.dirname(args.out_file)
+        if out_dir and not osp.exists(out_dir):
+            os.makedirs(out_dir, exist_ok=True)
+        with open(args.out_file, 'a+') as f:
+            f.write(log)
+            f.write('\n\n')
